@@ -111,10 +111,15 @@ data/other/visitor_counter/
 ├── total.json              ← all-time visitor total
 ├── meta.json               ← plugin settings (widget visibility)
 ├── YYYY-MM-DD.json         ← daily visitor count (one file per day)
-└── YYYY-MM-DD_hours.json   ← hourly breakdown per day
+├── YYYY-MM-DD_hours.json   ← hourly breakdown per day
+└── last_prune.txt          ← date of the last cleanup of old day files
 ```
 
 ### Changelog
+
+#### Unreleased
+- **Reset All Statistics** no longer deletes `meta.json`, so the widget visibility setting survives a reset.
+- Day files (`YYYY-MM-DD.json`, `YYYY-MM-DD_hours.json`) older than 90 days (`VCP_KEEP_DAYS`) are now pruned automatically, at most once per day.
 
 #### v2.0
 - Complete rewrite from scratch.
@@ -251,10 +256,15 @@ data/other/visitor_counter/
 ├── total.json              ← الإجمالي الكلي للزوار
 ├── meta.json               ← إعدادات الإضافة (إظهار الأداة)
 ├── YYYY-MM-DD.json         ← عدد زوار اليوم (ملف لكل يوم)
-└── YYYY-MM-DD_hours.json   ← التوزيع على الساعات لكل يوم
+├── YYYY-MM-DD_hours.json   ← التوزيع على الساعات لكل يوم
+└── last_prune.txt          ← تاريخ آخر حذف لملفات الأيام القديمة
 ```
 
 ### سجل التغييرات
+
+#### غير منشور بعد
+- زر **Reset All Statistics** لم يعد يحذف `meta.json`، فيبقى إعداد إظهار الأداة بعد إعادة التعيين.
+- تُحذف تلقائيًا ملفات الأيام (`YYYY-MM-DD.json` و`YYYY-MM-DD_hours.json`) الأقدم من 90 يومًا (`VCP_KEEP_DAYS`)، مرة واحدة في اليوم على الأكثر.
 
 #### الإصدار 2.0
 - إعادة كتابة كاملة من الصفر.
