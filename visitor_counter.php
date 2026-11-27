@@ -104,7 +104,8 @@ function vcp_track() {
 
     // One unique visit per 24 hours per browser via HttpOnly cookie
     if (!isset($_COOKIE['vcp_visit'])) {
-        setcookie('vcp_visit', '1', time() + 86400, '/', '', false, true);
+        $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        setcookie('vcp_visit', '1', time() + 86400, '/', '', $secure, true);
 
         vcp_increment_file(vcp_day_file(0), 'today', 1);
         vcp_increment_file(VCP_TOTAL,       'total', 1);
@@ -156,6 +157,16 @@ function vcp_get_stats() {
     );
 }
 
+// Lightweight stats for the frontend widget and AJAX (2 small files instead of ~32)
+function vcp_get_quick_stats() {
+    $total_data = vcp_read_json(VCP_TOTAL, array('total' => 0));
+    $today_data = vcp_read_json(vcp_day_file(0), array('today' => 0));
+    return array(
+        'today' => vcp_int($today_data['today'] ?? 0),
+        'total' => vcp_int($total_data['total'] ?? 0),
+    );
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Register Plugin
 // ────────────────────────────────────────────────────────────────────────────
@@ -179,8 +190,7 @@ add_action('settings-sidebar', 'createSideMenu', array(VCP_ID, '📊 Visitor Cou
 if (isset($_GET['vcp_ajax']) && $_GET['vcp_ajax'] === '1') {
     header('Content-Type: application/json');
     header('Cache-Control: no-store');
-    $s = vcp_get_stats();
-    echo json_encode(array('today' => $s['today'], 'total' => $s['total']));
+    echo json_encode(vcp_get_quick_stats());
     exit;
 }
 
@@ -194,7 +204,7 @@ function vcp_frontend_output() {
     $opts = vcp_read_json(VCP_META, array('show_widget' => '1'));
     if (($opts['show_widget'] ?? '1') === '0') return;
 
-    $s = vcp_get_stats();
+    $s = vcp_get_quick_stats();
     ?>
 <style>
 #vcp-widget{display:inline-flex;align-items:center;gap:14px;font-family:'Segoe UI',sans-serif;font-size:13px;color:#ccc;padding:6px 14px;background:rgba(0,0,0,.35);border-radius:20px;}
