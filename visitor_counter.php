@@ -17,6 +17,8 @@ define('VCP_VERSION', '2.0');
 define('VCP_DIR',     GSDATAOTHERPATH . 'visitor_counter/');
 define('VCP_TOTAL',   VCP_DIR . 'total.json');
 define('VCP_META',    VCP_DIR . 'meta.json');
+define('VCP_KEEP_DAYS', 90);                          // day files older than this are pruned
+define('VCP_PRUNE_MARK', VCP_DIR . 'last_prune.txt'); // date of the last prune (not *.json)
 
 // ────────────────────────────────────────────────────────────────────────────
 // Safe Output Helpers
@@ -89,6 +91,33 @@ function vcp_day_file($offset = 0) {
     return VCP_DIR . date('Y-m-d', strtotime("-{$offset} days")) . '.json';
 }
 
+// Per-day data files only: YYYY-MM-DD.json and YYYY-MM-DD_hours.json.
+// Returns array(path => 'Y-m-d'). Never matches total.json or meta.json.
+function vcp_day_files() {
+    $out   = array();
+    $files = glob(VCP_DIR . '*.json');
+    if (!$files) return $out;
+    foreach ($files as $f) {
+        if (preg_match('/^(\d{4}-\d{2}-\d{2})(?:_hours)?\.json$/', basename($f), $m)) {
+            $out[$f] = $m[1];
+        }
+    }
+    return $out;
+}
+
+// Delete day files older than VCP_KEEP_DAYS. Runs at most once per day.
+function vcp_maybe_prune() {
+    $today = date('Y-m-d');
+    if (is_file(VCP_PRUNE_MARK) && trim((string)@file_get_contents(VCP_PRUNE_MARK)) === $today) return;
+    vcp_ensure_dir();
+    // Write the mark first so concurrent requests don't all prune.
+    @file_put_contents(VCP_PRUNE_MARK, $today, LOCK_EX);
+    $cutoff = date('Y-m-d', strtotime('-' . (int)VCP_KEEP_DAYS . ' days'));
+    foreach (vcp_day_files() as $f => $day) {
+        if (strcmp($day, $cutoff) < 0) @unlink($f);
+    }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Tracking Logic
 // ────────────────────────────────────────────────────────────────────────────
@@ -113,6 +142,8 @@ function vcp_track() {
         // Track hourly distribution
         $hour_file = VCP_DIR . date('Y-m-d') . '_hours.json';
         vcp_increment_file($hour_file, (string)(int)date('G'), 1);
+
+        vcp_maybe_prune();
     }
 }
 
@@ -372,8 +403,8 @@ function vcp_admin_page() {
         if (empty($_POST['vcp_nonce']) || !vcp_verify_nonce($_POST['vcp_nonce'])) {
             $notice = '<div class="vcp-error">❌ Security check failed. Please try again.</div>';
         } elseif (isset($_POST['vcp_reset'])) {
-            $files = glob(VCP_DIR . '*.json');
-            if ($files) foreach ($files as $f) unlink($f);
+            // Delete counter/day data only; keep meta.json (settings).
+            foreach (array_keys(vcp_day_files()) as $f) @unlink($f);
             vcp_write_json(VCP_TOTAL, array('total' => 0));
             $notice = '<div class="vcp-success">✅ All statistics have been reset.</div>';
         } elseif (isset($_POST['vcp_save_settings'])) {
